@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>БухПульт</title>
+  <style>
+    :root {
+      --page: #061118;
+      --phone: #202a2d;
+      --panel: #263235;
+      --panel-soft: #303c40;
+      --text: #f7faf9;
+      --muted: #9aa6a8;
+      --line: rgba(255, 255, 255, .08);
+      --accent: #ffb000;
+      --accent-deep: #f08b00;
+      --good: #5dd38b;
+      --bad: #ff6b5f;
+      --info: #8fb8ff;
+      --shadow: 0 18px 50px rgba(0, 0, 0, .32);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 25% 15%, rgba(255, 176, 0, .10), transparent 25%),
+        linear-gradient(155deg, #172023 0%, #061118 75%);
+      color: var(--text);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .phone {
+      width: min(100vw, 430px);
+      min-height: 100vh;
+      margin: 0 auto;
+      background: var(--phone);
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 78% 6%, rgba(255, 255, 255, .04), transparent 20%),
+        linear-gradient(180deg, rgba(255, 255, 255, .03), transparent 42%);
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: 18px 20px 12px;
+      background: rgba(32, 42, 45, .90);
+      backdrop-filter: blur(18px);
+    }
+
+    .statusline {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand { flex: 1; min-width: 0; }
+
+    .brand span {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, .08);
+      color: var(--text);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .icon-btn.accent {
+      background: var(--accent);
+      color: #111719;
+      box-shadow: 0 10px 22px rgba(255, 176, 0, .28);
+      font-weight: 950;
+    }
+
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 44px;
+      margin-top: 16px;
+      padding: 0 14px;
+      background: rgba(255, 255, 255, .08);
+      border-radius: 22px;
+      color: var(--muted);
+    }
+
+    .search input {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .search input::placeholder { color: rgba(255, 255, 255, .42); }
+
+    main {
+      position: relative;
+      z-index: 1;
+      height: calc(100vh - 126px - 72px);
+      overflow: auto;
+      padding: 0 18px 20px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .hero-card {
+      position: relative;
+      min-height: 188px;
+      padding: 20px;
+      border-radius: 30px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(255, 214, 87, .55), transparent 18%),
+        linear-gradient(145deg, #ffc400 0%, #ffab00 55%, #ff9800 100%);
+      color: #151a1d;
+      box-shadow: 0 18px 34px rgba(255, 154, 0, .18);
+    }
+
+    .hero-card.action {
+      border: 0;
+      width: 100%;
+      display: block;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .hero-card::before,
+    .hero-card::after,
+    .tile::before,
+    .empty::before {
+      content: "";
+      position: absolute;
+      width: 210px;
+      height: 210px;
+      border: 2px solid rgba(151, 82, 0, .13);
+      border-radius: 42% 58% 40% 60%;
+      transform: rotate(18deg);
+    }
+
+    .hero-card::before { right: -74px; top: -40px; }
+    .hero-card::after { left: -96px; bottom: -94px; }
+
+    .hero-top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .hero-top span {
+      display: block;
+      font-size: 12px;
+      font-weight: 850;
+      opacity: .72;
+    }
+
+    .hero-top b {
+      display: block;
+      margin-top: 8px;
+      font-size: 44px;
+      line-height: .9;
+    }
+
+    .hero-top p {
+      margin: 10px 0 0;
+      max-width: 230px;
+      font-size: 13px;
+      line-height: 1.3;
+      font-weight: 750;
+      opacity: .72;
+    }
+
+    .play {
+      width: 54px;
+      height: 54px;
+      border: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #ffffff;
+      color: #111719;
+      font-size: 22px;
+      font-weight: 950;
+      box-shadow: 0 12px 26px rgba(0, 0, 0, .18);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .hero-bottom {
+      position: relative;
+      z-index: 1;
+      margin-top: 32px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .mini-stat {
+      min-height: 54px;
+      border-radius: 19px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, .28);
+      backdrop-filter: blur(8px);
+    }
+
+    .mini-stat b {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .mini-stat span {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 750;
+      opacity: .70;
+    }
+
+    .section-title {
+      margin: 22px 3px 10px;
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 2px 0 6px;
+      scrollbar-width: none;
+    }
+
+    .toolbar::-webkit-scrollbar { display: none; }
+
+    .tool {
+      min-height: 42px;
+      border: 0;
+      border-radius: 21px;
+      padding: 0 16px;
+      background: rgba(255, 255, 255, .08);
+      color: var(--text);
+      font-weight: 850;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tool.primary {
+      background: var(--accent);
+      color: #151a1d;
+      box-shadow: 0 12px 22px rgba(255, 176, 0, .20);
+    }
+
+    .tool.danger {
+      background: rgba(255, 107, 95, .14);
+      color: #ff9b94;
+    }
+
+    .tool.square {
+      width: 42px;
+      padding: 0;
+      flex: 0 0 auto;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .search-results {
+      display: none;
+    }
+
+    .search-results.active {
+      display: block;
+    }
+
+    .row {
+      width: 100%;
+      min-height: 72px;
+      border: 0;
+      border-radius: 24px;
+      padding: 12px 14px;
+      background: var(--panel);
+      color: inherit;
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .row:active, .tool:active, .icon-btn:active, .tab:active, .play:active {
+      transform: scale(.985);
+    }
+
+    .dot {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, .09);
+      color: rgba(255, 255, 255, .64);
+      font-size: 13px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .row-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .row-title {
+      display: block;
+      font-size: 15px;
+      font-weight: 850;
+      line-height: 1.15;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-sub {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-meta {
+      min-width: 72px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .badge {
+      display: inline-flex;
+      min-height: 25px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      padding: 3px 9px;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .badge.red { background: rgba(255, 107, 95, .14); color: #ff8d84; }
+    .badge.green { background: rgba(93, 211, 139, .14); color: #70e29b; }
+    .badge.blue { background: rgba(143, 184, 255, .15); color: #a9c8ff; }
+    .badge.orange { background: rgba(255, 176, 0, .18); color: var(--accent); }
+    .badge.gray { background: rgba(255, 255, 255, .09); color: #c8d0d1; }
+
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .tile-grid .empty {
+      grid-column: 1 / -1;
+    }
+
+    .tile {
+      position: relative;
+      min-height: 146px;
+      border: 0;
+      border-radius: 26px;
+      padding: 14px;
+      overflow: hidden;
+      background: linear-gradient(145deg, #ffbd12, #ff9900);
+      color: #151a1d;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      text-align: left;
+      box-shadow: 0 14px 28px rgba(255, 154, 0, .12);
+      cursor: pointer;
+    }
+
+    .tile::before { right: -104px; top: -76px; }
+
+    .tile-icon {
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .38);
+      display: grid;
+      place-items: center;
+      font-weight: 950;
+    }
+
+    .tile b,
+    .tile span {
+      position: relative;
+      z-index: 1;
+      display: block;
+    }
+
+    .tile b {
+      font-size: 15px;
+      line-height: 1.12;
+    }
+
+    .tile span {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 750;
+      opacity: .70;
+      line-height: 1.2;
+    }
+
+    .empty {
+      position: relative;
+      min-height: 170px;
+      border-radius: 28px;
+      overflow: hidden;
+      background: var(--panel);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .empty::before {
+      right: -90px;
+      top: -88px;
+      border-color: rgba(255, 176, 0, .12);
+    }
+
+    .empty b {
+      position: relative;
+      z-index: 1;
+      display: block;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .empty span {
+      position: relative;
+      z-index: 1;
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .empty .tool {
+      position: relative;
+      z-index: 1;
+      margin-top: 16px;
+      align-self: flex-start;
+    }
+
+    .form {
+      padding: 0 18px 22px;
+    }
+
+    .field {
+      margin-bottom: 13px;
+    }
+
+    .field label {
+      display: block;
+      margin: 0 0 7px 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .field input, .field select, .field textarea {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      border-radius: 24px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 0 16px;
+    }
+
+    .field input, .field select { height: 48px; }
+
+    .field textarea {
+      min-height: 92px;
+      padding-top: 14px;
+      resize: vertical;
+    }
+
+    .tabs {
+      position: sticky;
+      bottom: 0;
+      z-index: 6;
+      height: 72px;
+      padding: 8px 12px 12px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 7px;
+      background: rgba(32, 42, 45, .90);
+      backdrop-filter: blur(20px);
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 22px;
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 850;
+      cursor: pointer;
+      min-width: 0;
+    }
+
+    .tab b {
+      width: 22px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .tab.active {
+      color: #151a1d;
+      background: var(--accent);
+    }
+
+    .sheet {
+      position: fixed;
+      inset: auto 0 0 0;
+      margin: 0 auto;
+      width: min(100vw, 430px);
+      max-height: 88vh;
+      background: var(--phone);
+      border-radius: 30px 30px 0 0;
+      box-shadow: 0 -20px 52px rgba(0, 0, 0, .40);
+      transform: translateY(105%);
+      transition: transform .22s ease;
+      z-index: 10;
+      overflow: auto;
+    }
+
+    .sheet.open { transform: translateY(0); }
+
+    .sheet-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      background: rgba(32, 42, 45, .94);
+      backdrop-filter: blur(18px);
+    }
+
+    .sheet-head h2 {
+      margin: 0;
+      flex: 1;
+      font-size: 20px;
+      line-height: 1.12;
+    }
+
+    .details {
+      margin: 0 18px 12px;
+      border-radius: 24px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 98px 1fr;
+      min-height: 48px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    .kv:last-child { border-bottom: 0; }
+
+    .kv div { padding: 12px 14px; min-width: 0; }
+
+    .kv div:first-child {
+      color: var(--muted);
+      font-weight: 850;
+    }
+
+    .progress {
+      height: 7px;
+      margin-top: 9px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .11);
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--accent);
+    }
+
+    .sheet .list { padding: 0 18px 12px; }
+    .sheet .toolbar { padding: 0 18px 22px; }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 84px;
+      transform: translateX(-50%) translateY(14px);
+      opacity: 0;
+      width: min(88vw, 360px);
+      background: rgba(10, 14, 15, .92);
+      color: white;
+      padding: 12px 14px;
+      border-radius: 22px;
+      font-size: 14px;
+      pointer-events: none;
+      transition: .18s ease;
+      z-index: 20;
+      text-align: center;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (min-width: 700px) {
+      body { padding: 24px 0; }
+      .phone {
+        min-height: calc(100vh - 48px);
+        border-radius: 34px;
+      }
+      main { height: calc(100vh - 126px - 72px - 48px); }
+    }
+  </style>
+  <script src="./config.js"></script>
+</head>
+<body>
+  <div class="phone">
+    <header class="topbar">
+      <div class="statusline">
+        <button class="icon-btn" title="Экспорт" type="button" id="exportBtn">⇩</button>
+        <div class="brand">
+          <span id="todayLabel">Сегодня</span>
+          <strong>БухПульт</strong>
+        </div>
+        <button class="icon-btn" title="Очистить базу" type="button" id="clearBtn">⋮</button>
+        <button class="icon-btn accent" title="Быстро добавить" type="button" id="quickAddBtn">+</button>
+      </div>
+      <label class="search" for="searchInput">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Поиск по базе">
+      </label>
+    </header>
+
+    <main>
+      <section class="view active" id="dashboard">
+        <button class="hero-card action" type="button" data-action="addTask">
+          <div class="hero-top">
+            <div>
+              <span>Быстрое действие</span>
+              <b>+</b>
+              <p>Завести новое дело: срок, поручение, запрос клиенту или внутреннюю проверку.</p>
+            </div>
+            <span class="play">▶</span>
+          </div>
+          <div class="hero-bottom">
+            <div class="mini-stat"><b id="clientCount">0</b><span>клиентов</span></div>
+            <div class="mini-stat"><b id="firmCount">0</b><span>фирм</span></div>
+            <div class="mini-stat"><b id="taskCount">0</b><span>задач</span></div>
+          </div>
+        </button>
+
+        <div class="search-results" id="searchResults">
+          <div class="section-title">Результаты поиска</div>
+          <div class="list" id="globalResults"></div>
+        </div>
+
+        <div class="section-title dashboard-block">Быстрый старт</div>
+        <div class="toolbar dashboard-block">
+          <button class="tool primary" type="button" data-action="addClient">Клиент</button>
+          <button class="tool" type="button" data-action="addFirm">Фирма</button>
+          <button class="tool" type="button" data-action="addTask">Задача</button>
+          <button class="tool" type="button" data-action="addDoc">Документ</button>
+        </div>
+
+        <div class="section-title dashboard-block">Ближайшие задачи</div>
+        <div class="list" id="hotList"></div>
+
+        <div class="section-title dashboard-block">Последние фирмы</div>
+        <div class="list" id="firmListShort"></div>
+      </section>
+
+      <section class="view" id="clients">
+        <div class="toolbar">
+          <button class="tool primary" type="button" data-action="addClient">Новый клиент</button>
+        </div>
+        <div class="section-title">Клиенты</div>
+        <div class="list" id="clientList"></div>
+      </section>
+
+      <section class="view" id="firms">
+        <div class="toolbar">
+          <button class="tool primary" type="button" data-action="addFirm">Новая фирма</button>
+          <button class="tool" type="button" data-filter-firms="risk">С рисками</button>
+          <button class="tool" type="button" data-filter-firms="all">Все</button>
+        </div>
+        <div class="section-title">Фирмы</div>
+        <div class="list" id="firmList"></div>
+      </section>
+
+      <section class="view" id="tasks">
+        <div class="toolbar">
+          <button class="tool primary" type="button" data-action="addTask">Новая задача</button>
+          <button class="tool" type="button" data-filter-tasks="open">Открытые</button>
+          <button class="tool" type="button" data-filter-tasks="all">Все</button>
+        </div>
+        <div class="section-title">Задачи</div>
+        <div class="list" id="taskList"></div>
+      </section>
+
+      <section class="view" id="docs">
+        <div class="toolbar">
+          <button class="tool primary" type="button" data-action="addDoc">Новый документ</button>
+        </div>
+        <div class="section-title">Документы</div>
+        <div class="tile-grid" id="docGrid"></div>
+      </section>
+    </main>
+
+    <nav class="tabs">
+      <button class="tab active" type="button" data-tab="dashboard"><b>⌂</b><span>Обзор</span></button>
+      <button class="tab" type="button" data-tab="clients"><b>◎</b><span>Клиенты</span></button>
+      <button class="tab" type="button" data-tab="firms"><b>▦</b><span>Фирмы</span></button>
+      <button class="tab" type="button" data-tab="tasks"><b>✓</b><span>Дела</span></button>
+      <button class="tab" type="button" data-tab="docs"><b>▤</b><span>Файлы</span></button>
+    </nav>
+  </div>
+
+  <aside class="sheet" id="detailSheet" aria-hidden="true">
+    <div class="sheet-head">
+      <h2 id="detailTitle">Карточка</h2>
+      <button class="icon-btn" type="button" data-close title="Закрыть">×</button>
+    </div>
+    <div class="details" id="detailBody"></div>
+    <div class="toolbar" id="detailActions"></div>
+  </aside>
+
+  <aside class="sheet" id="formSheet" aria-hidden="true">
+    <div class="sheet-head">
+      <h2 id="formTitle">Новая запись</h2>
+      <button class="icon-btn" type="button" data-close title="Закрыть">×</button>
+    </div>
+    <form class="form" id="entryForm"></form>
+  </aside>
+
+  <div class="toast" id="toast">Готово</div>
+
+  <script>
+    const emptyDb = () => ({ clients: [], firms: [], tasks: [], docs: [] });
+    const config = window.BUHPULT_CONFIG || {};
+    const supabaseUrl = (config.supabaseUrl || '').replace(/\/$/, '');
+    const supabaseAnonKey = config.supabaseAnonKey || '';
+    let db = emptyDb();
+    let isConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+    let activeTab = 'dashboard';
+    let taskFilter = 'open';
+    let firmFilter = 'all';
+    let searchQuery = '';
+
+    const views = document.querySelectorAll('.view');
+    const tabButtons = document.querySelectorAll('.tab');
+    const detailSheet = document.getElementById('detailSheet');
+    const formSheet = document.getElementById('formSheet');
+    const toast = document.getElementById('toast');
+
+    const regimes = ['УСН доходы', 'УСН доходы-расходы', 'ОСНО', 'ПСН', 'ЕСХН', 'Самозанятый'];
+    const firmStatuses = [
+      ['ok', 'В норме'],
+      ['wait', 'Ждет документы'],
+      ['risk', 'Есть риск'],
+      ['check', 'Проверка']
+    ];
+    const docStatuses = [
+      ['new', 'Новый'],
+      ['checked', 'Проверен'],
+      ['missing', 'Не хватает'],
+      ['archived', 'Архив']
+    ];
+
+    function tableFor(type) {
+      return type === 'client' ? 'clients' : type === 'firm' ? 'firms' : type === 'task' ? 'tasks' : 'docs';
+    }
+
+    function toApi(type, item) {
+      if (type === 'firm') return { ...item, client_id: item.clientId, clientId: undefined };
+      if (type === 'task' || type === 'doc') return { ...item, firm_id: item.firmId, firmId: undefined };
+      return item;
+    }
+
+    function fromApi(type, item) {
+      if (type === 'firm') return { ...item, clientId: item.client_id };
+      if (type === 'task' || type === 'doc') return { ...item, firmId: item.firm_id };
+      return item;
+    }
+
+    async function api(table, options = {}) {
+      if (!isConfigured) throw new Error('Supabase не настроен');
+      const response = await fetch(`${supabaseUrl}/rest/v1/${table}${options.query || ''}`, {
+        method: options.method || 'GET',
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+          ...(options.headers || {})
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Ошибка Supabase: ${response.status}`);
+      }
+      if (response.status === 204) return [];
+      return response.json();
+    }
+
+    async function loadDb() {
+      if (!isConfigured) {
+        db = emptyDb();
+        return;
+      }
+      const [clients, firms, tasks, docs] = await Promise.all([
+        api('clients', { query: '?select=*&order=created_at.asc' }),
+        api('firms', { query: '?select=*&order=created_at.asc' }),
+        api('tasks', { query: '?select=*&order=created_at.asc' }),
+        api('docs', { query: '?select=*&order=created_at.asc' })
+      ]);
+      db = {
+        clients: clients.map(item => fromApi('client', item)),
+        firms: firms.map(item => fromApi('firm', item)),
+        tasks: tasks.map(item => fromApi('task', item)),
+        docs: docs.map(item => fromApi('doc', item))
+      };
+    }
+
+    async function upsertItem(type, payload, existingId) {
+      const table = tableFor(type);
+      const body = toApi(type, payload);
+      if (existingId) {
+        const rows = await api(table, {
+          method: 'PATCH',
+          query: `?id=eq.${encodeURIComponent(existingId)}`,
+          body
+        });
+        return fromApi(type, rows[0] || payload);
+      }
+      const rows = await api(table, { method: 'POST', body });
+      return fromApi(type, rows[0] || payload);
+    }
+
+    async function removeItem(type, itemId) {
+      await api(tableFor(type), {
+        method: 'DELETE',
+        query: `?id=eq.${encodeURIComponent(itemId)}`
+      });
+    }
+
+    function id() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function todayIso() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function formatDate(value) {
+      if (!value) return 'без срока';
+      const [year, month, day] = value.split('-');
+      return `${day}.${month}.${year.slice(2)}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+
+    function labelFrom(options, value) {
+      return options.find(item => item[0] === value)?.[1] || value || 'не задано';
+    }
+
+    function badgeClass(kind) {
+      if (kind === 'risk' || kind === 'missing') return 'badge red';
+      if (kind === 'ok' || kind === 'checked' || kind === 'done') return 'badge green';
+      if (kind === 'wait' || kind === 'new') return 'badge orange';
+      if (kind === 'check' || kind === 'open') return 'badge blue';
+      return 'badge gray';
+    }
+
+    function initial(text) {
+      const clean = String(text || '').replace(/^ООО|^ИП|\s|[".]/g, '');
+      return clean.charAt(0) || '•';
+    }
+
+    function firmName(firmId) {
+      return db.firms.find(firm => firm.id === firmId)?.name || 'без фирмы';
+    }
+
+    function clientName(clientId) {
+      return db.clients.find(client => client.id === clientId)?.name || 'без клиента';
+    }
+
+    function relatedFirmCount(clientId) {
+      return db.firms.filter(firm => firm.clientId === clientId).length;
+    }
+
+    function queryMatches(text) {
+      return !searchQuery || String(text).toLowerCase().includes(searchQuery);
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      window.setTimeout(() => toast.classList.remove('show'), 1400);
+    }
+
+    function closeSheets() {
+      detailSheet.classList.remove('open');
+      formSheet.classList.remove('open');
+      detailSheet.setAttribute('aria-hidden', 'true');
+      formSheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function setTab(tab) {
+      activeTab = tab;
+      views.forEach(view => view.classList.toggle('active', view.id === tab));
+      tabButtons.forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
+      closeSheets();
+      render();
+    }
+
+    function emptyState(title, text, action, label) {
+      return `
+        <article class="empty">
+          <b>${escapeHtml(title)}</b>
+          <span>${escapeHtml(text)}</span>
+          ${action ? `<button class="tool primary" type="button" data-action="${action}">${escapeHtml(label)}</button>` : ''}
+        </article>
+      `;
+    }
+
+    function row({ id, type, icon, title, sub, badge, meta, danger }) {
+      return `
+        <button class="row" type="button" data-open="${type}" data-id="${id}">
+          <span class="dot">${escapeHtml(icon)}</span>
+          <span class="row-main">
+            <span class="row-title">${escapeHtml(title)}</span>
+            <span class="row-sub">${escapeHtml(sub)}</span>
+          </span>
+          <span class="row-meta">
+            ${meta ? `<span>${escapeHtml(meta)}</span>` : ''}
+            ${badge ? `<span class="${badgeClass(danger || badge.kind)}">${escapeHtml(badge.text)}</span>` : ''}
+          </span>
+        </button>
+      `;
+    }
+
+    function render() {
+      const openTasks = db.tasks.filter(task => task.status !== 'done');
+      document.getElementById('clientCount').textContent = db.clients.length;
+      document.getElementById('firmCount').textContent = db.firms.length;
+      document.getElementById('taskCount').textContent = openTasks.length;
+      renderClients();
+      renderFirms();
+      renderTasks();
+      renderDocs();
+      renderDashboard();
+      renderGlobalSearch();
+      if (!isConfigured) renderSetupNotice();
+    }
+
+    function renderSetupNotice() {
+      document.getElementById('hotList').innerHTML = emptyState(
+        'Подключите Supabase',
+        'Заполните outputs/config.js: supabaseUrl и supabaseAnonKey. После этого данные будут храниться в базе Supabase.',
+        '',
+        ''
+      );
+      document.getElementById('firmListShort').innerHTML = emptyState(
+        'База пока не подключена',
+        'Сначала выполните SQL-схему в Supabase, затем обновите config.js и перезагрузите страницу.',
+        '',
+        ''
+      );
+    }
+
+    function renderDashboard() {
+      const hot = db.tasks
+        .filter(task => task.status !== 'done' && queryMatches(`${task.title} ${firmName(task.firmId)}`))
+        .sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'))
+        .slice(0, 4);
+      document.getElementById('hotList').innerHTML = hot.length
+        ? hot.map(task => row({
+            id: task.id,
+            type: 'task',
+            icon: '✓',
+            title: task.title,
+            sub: firmName(task.firmId),
+            meta: formatDate(task.due),
+            badge: { kind: 'open', text: 'открыта' }
+          })).join('')
+        : emptyState('Нет задач', 'Добавьте первую задачу или срок отчетности, чтобы видеть их на главном экране.', 'addTask', 'Добавить задачу');
+
+      const lastFirms = db.firms
+        .filter(firm => queryMatches(`${firm.name} ${firm.inn} ${firm.regime} ${clientName(firm.clientId)}`))
+        .slice(-4)
+        .reverse();
+      document.getElementById('firmListShort').innerHTML = lastFirms.length
+        ? lastFirms.map(firm => firmRow(firm)).join('')
+        : emptyState('Фирм пока нет', 'Создайте клиента, затем добавьте его фирму и режим налогообложения.', 'addFirm', 'Добавить фирму');
+    }
+
+    function renderGlobalSearch() {
+      const panel = document.getElementById('searchResults');
+      const results = document.getElementById('globalResults');
+      const blocks = document.querySelectorAll('.dashboard-block');
+      panel.classList.toggle('active', Boolean(searchQuery));
+      blocks.forEach(block => block.style.display = searchQuery ? 'none' : '');
+      document.getElementById('hotList').style.display = searchQuery ? 'none' : '';
+      document.getElementById('firmListShort').style.display = searchQuery ? 'none' : '';
+
+      if (!searchQuery) {
+        results.innerHTML = '';
+        return;
+      }
+
+      const clients = db.clients
+        .filter(client => queryMatches(`${client.name} ${client.phone} ${client.email} ${client.note}`))
+        .map(client => row({
+          id: client.id,
+          type: 'client',
+          icon: initial(client.name),
+          title: client.name,
+          sub: client.phone || client.email || 'клиент без контактов',
+          meta: 'клиент',
+          badge: { kind: 'gray', text: `${relatedFirmCount(client.id)} фирм` }
+        }));
+
+      const firms = db.firms
+        .filter(firm => queryMatches(`${firm.name} ${firm.inn} ${firm.regime} ${clientName(firm.clientId)} ${labelFrom(firmStatuses, firm.status)}`))
+        .map(firm => firmRow(firm));
+
+      const tasks = db.tasks
+        .filter(task => queryMatches(`${task.title} ${firmName(task.firmId)} ${formatDate(task.due)} ${task.status === 'done' ? 'готово закрыто' : 'открыта дело задача'}`))
+        .map(task => row({
+          id: task.id,
+          type: 'task',
+          icon: task.status === 'done' ? '✓' : '!',
+          title: task.title,
+          sub: firmName(task.firmId),
+          meta: formatDate(task.due),
+          badge: { kind: task.status, text: task.status === 'done' ? 'готово' : 'дело' }
+        }));
+
+      const docs = db.docs
+        .filter(doc => queryMatches(`${doc.title} ${doc.period} ${firmName(doc.firmId)} ${labelFrom(docStatuses, doc.status)} документ файл`))
+        .map(doc => row({
+          id: doc.id,
+          type: 'doc',
+          icon: initial(doc.title),
+          title: doc.title,
+          sub: `${firmName(doc.firmId)} · ${doc.period || 'период не указан'}`,
+          meta: 'файл',
+          badge: { kind: doc.status, text: labelFrom(docStatuses, doc.status) }
+        }));
+
+      const all = [...tasks, ...clients, ...firms, ...docs];
+      results.innerHTML = all.length
+        ? all.join('')
+        : emptyState('Ничего не найдено', 'Попробуйте часть названия, ИНН, имя клиента, срок, статус или название файла.', '', '');
+    }
+
+    function clientRow(client) {
+      return row({
+        id: client.id,
+        type: 'client',
+        icon: initial(client.name),
+        title: client.name,
+        sub: client.phone || client.email || 'контакты не указаны',
+        meta: `${relatedFirmCount(client.id)} фирм`,
+        badge: { kind: 'gray', text: 'клиент' }
+      });
+    }
+
+    function firmRow(firm) {
+      return row({
+        id: firm.id,
+        type: 'firm',
+        icon: initial(firm.name),
+        title: firm.name,
+        sub: `${firm.inn || 'ИНН не указан'} · ${labelFrom(regimes.map(x => [x, x]), firm.regime)} · ${clientName(firm.clientId)}`,
+        badge: { kind: firm.status, text: labelFrom(firmStatuses, firm.status) }
+      });
+    }
+
+    function renderClients() {
+      const clients = db.clients.filter(client => queryMatches(`${client.name} ${client.phone} ${client.email}`));
+      document.getElementById('clientList').innerHTML = clients.length
+        ? clients.map(clientRow).join('')
+        : emptyState('Клиентов пока нет', 'Начните с клиента: имя, телефон и почта. Потом привяжите к нему одну или несколько фирм.', 'addClient', 'Добавить клиента');
+    }
+
+    function renderFirms() {
+      const firms = db.firms
+        .filter(firm => firmFilter === 'all' || firm.status === 'risk' || firm.status === 'wait')
+        .filter(firm => queryMatches(`${firm.name} ${firm.inn} ${firm.regime} ${clientName(firm.clientId)}`));
+      document.getElementById('firmList').innerHTML = firms.length
+        ? firms.map(firmRow).join('')
+        : emptyState('Фирм пока нет', 'Добавьте организацию, ИНН, режим налогообложения и клиента-владельца.', 'addFirm', 'Добавить фирму');
+    }
+
+    function renderTasks() {
+      const tasks = db.tasks
+        .filter(task => taskFilter === 'all' || task.status !== 'done')
+        .filter(task => queryMatches(`${task.title} ${firmName(task.firmId)}`))
+        .sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'));
+      document.getElementById('taskList').innerHTML = tasks.length
+        ? tasks.map(task => row({
+            id: task.id,
+            type: 'task',
+            icon: task.status === 'done' ? '✓' : '!',
+            title: task.title,
+            sub: firmName(task.firmId),
+            meta: formatDate(task.due),
+            badge: { kind: task.status, text: task.status === 'done' ? 'готово' : 'открыта' }
+          })).join('')
+        : emptyState('Задач пока нет', 'Создавайте сроки сдачи отчетности, запросы клиенту и внутренние проверки.', 'addTask', 'Добавить задачу');
+    }
+
+    function renderDocs() {
+      const docs = db.docs.filter(doc => queryMatches(`${doc.title} ${doc.period} ${firmName(doc.firmId)}`));
+      document.getElementById('docGrid').innerHTML = docs.length
+        ? docs.map(doc => `
+            <button class="tile" type="button" data-open="doc" data-id="${doc.id}">
+              <span class="tile-icon">${escapeHtml(initial(doc.title))}</span>
+              <b>${escapeHtml(doc.title)}</b>
+              <span>${escapeHtml(firmName(doc.firmId))}<br>${escapeHtml(doc.period || labelFrom(docStatuses, doc.status))}</span>
+            </button>
+          `).join('')
+        : emptyState('Документов пока нет', 'Здесь можно вести список выписок, актов, договоров и отмечать их проверку.', 'addDoc', 'Добавить документ');
+    }
+
+    function clientOptions(selected = '') {
+      return db.clients.map(client => `<option value="${client.id}" ${client.id === selected ? 'selected' : ''}>${escapeHtml(client.name)}</option>`).join('');
+    }
+
+    function firmOptions(selected = '') {
+      return db.firms.map(firm => `<option value="${firm.id}" ${firm.id === selected ? 'selected' : ''}>${escapeHtml(firm.name)}</option>`).join('');
+    }
+
+    function options(values, selected = '') {
+      return values.map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('');
+    }
+
+    function openForm(type, existing = null) {
+      const form = document.getElementById('entryForm');
+      const titles = { client: 'Клиент', firm: 'Фирма', task: 'Задача', doc: 'Документ' };
+      document.getElementById('formTitle').textContent = existing ? `Редактировать: ${titles[type]}` : `Новый: ${titles[type]}`;
+      form.dataset.type = type;
+      form.dataset.id = existing?.id || '';
+
+      if (type === 'client') {
+        form.innerHTML = `
+          ${field('name', 'Имя клиента', existing?.name || '', true)}
+          ${field('phone', 'Телефон', existing?.phone || '')}
+          ${field('email', 'Email', existing?.email || '')}
+          ${textarea('note', 'Заметка', existing?.note || '')}
+          ${submitButtons(existing)}
+        `;
+      }
+
+      if (type === 'firm') {
+        if (!db.clients.length) {
+          form.innerHTML = `${emptyState('Сначала нужен клиент', 'Фирма должна быть привязана к клиенту. Добавьте клиента, потом вернитесь к фирме.', 'addClient', 'Добавить клиента')}`;
+        } else {
+          form.innerHTML = `
+            ${field('name', 'Название фирмы', existing?.name || '', true)}
+            ${field('inn', 'ИНН', existing?.inn || '')}
+            ${select('clientId', 'Клиент', clientOptions(existing?.clientId), true)}
+            ${select('regime', 'Режим', options(regimes.map(item => [item, item]), existing?.regime || regimes[0]), true)}
+            ${select('status', 'Статус', options(firmStatuses, existing?.status || 'ok'), true)}
+            ${submitButtons(existing)}
+          `;
+        }
+      }
+
+      if (type === 'task') {
+        if (!db.firms.length) {
+          form.innerHTML = `${emptyState('Сначала нужна фирма', 'Задачи привязываются к фирме: отчетность, документы, банк, зарплата.', 'addFirm', 'Добавить фирму')}`;
+        } else {
+          form.innerHTML = `
+            ${field('title', 'Что сделать', existing?.title || '', true)}
+            ${select('firmId', 'Фирма', firmOptions(existing?.firmId), true)}
+            ${field('due', 'Срок', existing?.due || todayIso(), false, 'date')}
+            ${select('status', 'Статус', options([['open', 'Открыта'], ['done', 'Готово']], existing?.status || 'open'), true)}
+            ${submitButtons(existing)}
+          `;
+        }
+      }
+
+      if (type === 'doc') {
+        if (!db.firms.length) {
+          form.innerHTML = `${emptyState('Сначала нужна фирма', 'Документы хранятся в привязке к организации и периоду.', 'addFirm', 'Добавить фирму')}`;
+        } else {
+          form.innerHTML = `
+            ${field('title', 'Название документа', existing?.title || '', true)}
+            ${select('firmId', 'Фирма', firmOptions(existing?.firmId), true)}
+            ${field('period', 'Период', existing?.period || '')}
+            ${select('status', 'Статус', options(docStatuses, existing?.status || 'new'), true)}
+            ${submitButtons(existing)}
+          `;
+        }
+      }
+
+      detailSheet.classList.remove('open');
+      formSheet.classList.add('open');
+      formSheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function field(name, label, value, required = false, type = 'text') {
+      return `
+        <div class="field">
+          <label for="${name}">${label}</label>
+          <input id="${name}" name="${name}" type="${type}" value="${escapeHtml(value)}" ${required ? 'required' : ''}>
+        </div>
+      `;
+    }
+
+    function textarea(name, label, value) {
+      return `
+        <div class="field">
+          <label for="${name}">${label}</label>
+          <textarea id="${name}" name="${name}">${escapeHtml(value)}</textarea>
+        </div>
+      `;
+    }
+
+    function select(name, label, optionHtml, required = false) {
+      return `
+        <div class="field">
+          <label for="${name}">${label}</label>
+          <select id="${name}" name="${name}" ${required ? 'required' : ''}>${optionHtml}</select>
+        </div>
+      `;
+    }
+
+    function submitButtons(existing) {
+      return `
+        <div class="toolbar">
+          <button class="tool primary" type="submit">${existing ? 'Сохранить' : 'Добавить'}</button>
+          <button class="tool" type="button" data-close>Отмена</button>
+        </div>
+      `;
+    }
+
+    function openDetail(type, item) {
+      const titleMap = { client: 'Клиент', firm: 'Фирма', task: 'Задача', doc: 'Документ' };
+      document.getElementById('detailTitle').textContent = titleMap[type];
+      document.getElementById('detailBody').innerHTML = detailHtml(type, item);
+      document.getElementById('detailActions').innerHTML = `
+        <button class="tool primary" type="button" data-edit="${type}" data-id="${item.id}">Изменить</button>
+        ${type === 'task' ? `<button class="tool" type="button" data-toggle-task="${item.id}">${item.status === 'done' ? 'Открыть' : 'Готово'}</button>` : ''}
+        <button class="tool danger" type="button" data-delete="${type}" data-id="${item.id}">Удалить</button>
+      `;
+      formSheet.classList.remove('open');
+      detailSheet.classList.add('open');
+      detailSheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function detailHtml(type, item) {
+      if (type === 'client') {
+        return `
+          ${kv('Имя', item.name)}
+          ${kv('Телефон', item.phone || 'не указан')}
+          ${kv('Email', item.email || 'не указан')}
+          ${kv('Фирмы', relatedFirmCount(item.id))}
+          ${kv('Заметка', item.note || 'нет')}
+        `;
+      }
+      if (type === 'firm') {
+        return `
+          ${kv('Название', item.name)}
+          ${kv('ИНН', item.inn || 'не указан')}
+          ${kv('Клиент', clientName(item.clientId))}
+          ${kv('Режим', item.regime)}
+          ${kv('Статус', labelFrom(firmStatuses, item.status))}
+        `;
+      }
+      if (type === 'task') {
+        return `
+          ${kv('Задача', item.title)}
+          ${kv('Фирма', firmName(item.firmId))}
+          ${kv('Срок', formatDate(item.due))}
+          ${kv('Статус', item.status === 'done' ? 'Готово' : 'Открыта')}
+        `;
+      }
+      return `
+        ${kv('Документ', item.title)}
+        ${kv('Фирма', firmName(item.firmId))}
+        ${kv('Период', item.period || 'не указан')}
+        ${kv('Статус', labelFrom(docStatuses, item.status))}
+      `;
+    }
+
+    function kv(label, value) {
+      return `<div class="kv"><div>${escapeHtml(label)}</div><div>${escapeHtml(value)}</div></div>`;
+    }
+
+    async function saveForm(event) {
+      event.preventDefault();
+      if (!isConfigured) {
+        showToast('Сначала настройте Supabase');
+        return;
+      }
+      try {
+        const form = event.currentTarget;
+        const type = form.dataset.type;
+        const existingId = form.dataset.id;
+        const data = Object.fromEntries(new FormData(form).entries());
+
+        if (!type) return;
+        const collection = type === 'client' ? 'clients' : type === 'firm' ? 'firms' : type === 'task' ? 'tasks' : 'docs';
+        const payload = { id: existingId || id(), ...data };
+        if (type === 'task') payload.status = payload.status || 'open';
+        if (type === 'firm') payload.status = payload.status || 'ok';
+        if (type === 'doc') payload.status = payload.status || 'new';
+
+        const saved = await upsertItem(type, payload, existingId);
+        if (existingId) {
+          db[collection] = db[collection].map(item => item.id === existingId ? saved : item);
+        } else {
+          db[collection].push(saved);
+        }
+        closeSheets();
+        render();
+        showToast(existingId ? 'Сохранено' : 'Добавлено');
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
+    async function deleteItem(type, itemId) {
+      if (!isConfigured) {
+        showToast('Сначала настройте Supabase');
+        return;
+      }
+      const collection = type === 'client' ? 'clients' : type === 'firm' ? 'firms' : type === 'task' ? 'tasks' : 'docs';
+      if (type === 'client') {
+        const firmIds = db.firms.filter(firm => firm.clientId === itemId).map(firm => firm.id);
+        await Promise.all([
+          ...db.tasks.filter(task => firmIds.includes(task.firmId)).map(task => removeItem('task', task.id)),
+          ...db.docs.filter(doc => firmIds.includes(doc.firmId)).map(doc => removeItem('doc', doc.id)),
+          ...db.firms.filter(firm => firm.clientId === itemId).map(firm => removeItem('firm', firm.id)),
+          removeItem('client', itemId)
+        ]);
+        db.clients = db.clients.filter(item => item.id !== itemId);
+        db.firms = db.firms.filter(firm => firm.clientId !== itemId);
+        db.tasks = db.tasks.filter(task => !firmIds.includes(task.firmId));
+        db.docs = db.docs.filter(doc => !firmIds.includes(doc.firmId));
+      } else if (type === 'firm') {
+        await Promise.all([
+          ...db.tasks.filter(task => task.firmId === itemId).map(task => removeItem('task', task.id)),
+          ...db.docs.filter(doc => doc.firmId === itemId).map(doc => removeItem('doc', doc.id)),
+          removeItem('firm', itemId)
+        ]);
+        db.firms = db.firms.filter(item => item.id !== itemId);
+        db.tasks = db.tasks.filter(task => task.firmId !== itemId);
+        db.docs = db.docs.filter(doc => doc.firmId !== itemId);
+      } else {
+        await removeItem(type, itemId);
+        db[collection] = db[collection].filter(item => item.id !== itemId);
+      }
+      closeSheets();
+      render();
+      showToast('Удалено');
+    }
+
+    function findItem(type, itemId) {
+      const collection = type === 'client' ? 'clients' : type === 'firm' ? 'firms' : type === 'task' ? 'tasks' : 'docs';
+      return db[collection].find(item => item.id === itemId);
+    }
+
+    function exportData() {
+      const data = JSON.stringify(db, null, 2);
+      navigator.clipboard?.writeText(data)
+        .then(() => showToast('База скопирована в буфер'))
+        .catch(() => {
+          const blob = new Blob([data], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'buhpult-data.json';
+          link.click();
+          URL.revokeObjectURL(url);
+        });
+    }
+
+    document.addEventListener('click', event => {
+      const tab = event.target.closest('[data-tab]');
+      const action = event.target.closest('[data-action]');
+      const open = event.target.closest('[data-open]');
+      const close = event.target.closest('[data-close]');
+      const edit = event.target.closest('[data-edit]');
+      const remove = event.target.closest('[data-delete]');
+      const toggleTask = event.target.closest('[data-toggle-task]');
+      const taskFilterButton = event.target.closest('[data-filter-tasks]');
+      const firmFilterButton = event.target.closest('[data-filter-firms]');
+
+      if (tab) setTab(tab.dataset.tab);
+      if (action) {
+        const map = { addClient: 'client', addFirm: 'firm', addTask: 'task', addDoc: 'doc' };
+        openForm(map[action.dataset.action]);
+      }
+      if (open) {
+        const item = findItem(open.dataset.open, open.dataset.id);
+        if (item) openDetail(open.dataset.open, item);
+      }
+      if (close) closeSheets();
+      if (edit) {
+        const item = findItem(edit.dataset.edit, edit.dataset.id);
+        if (item) openForm(edit.dataset.edit, item);
+      }
+      if (remove && confirm('Удалить запись? Связанные данные тоже могут быть удалены.')) {
+        deleteItem(remove.dataset.delete, remove.dataset.id).catch(error => showToast(error.message));
+      }
+      if (toggleTask) {
+        const task = findItem('task', toggleTask.dataset.toggleTask);
+        if (task) {
+          task.status = task.status === 'done' ? 'open' : 'done';
+          upsertItem('task', task, task.id).catch(error => showToast(error.message));
+          closeSheets();
+          render();
+          showToast(task.status === 'done' ? 'Задача закрыта' : 'Задача открыта');
+        }
+      }
+      if (taskFilterButton) {
+        taskFilter = taskFilterButton.dataset.filterTasks;
+        renderTasks();
+      }
+      if (firmFilterButton) {
+        firmFilter = firmFilterButton.dataset.filterFirms;
+        renderFirms();
+      }
+    });
+
+    document.getElementById('entryForm').addEventListener('submit', saveForm);
+    document.getElementById('quickAddBtn').addEventListener('click', () => openForm(db.clients.length ? 'firm' : 'client'));
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      if (!db.clients.length && !db.firms.length && !db.tasks.length && !db.docs.length) {
+        showToast('База уже пустая');
+        return;
+      }
+      if (confirm('Очистить все данные приложения?')) {
+        Promise.all([
+          ...db.tasks.map(item => removeItem('task', item.id)),
+          ...db.docs.map(item => removeItem('doc', item.id)),
+          ...db.firms.map(item => removeItem('firm', item.id)),
+          ...db.clients.map(item => removeItem('client', item.id))
+        ]).then(() => {
+          db = emptyDb();
+          closeSheets();
+          render();
+          showToast('База очищена');
+        }).catch(error => showToast(error.message));
+      }
+    });
+    document.getElementById('searchInput').addEventListener('input', event => {
+      searchQuery = event.target.value.trim().toLowerCase();
+      if (searchQuery && activeTab !== 'dashboard') {
+        setTab('dashboard');
+        return;
+      }
+      render();
+    });
+
+    document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long'
+    });
+
+    loadDb()
+      .then(render)
+      .catch(error => {
+        db = emptyDb();
+        render();
+        showToast(error.message);
+      });
+  </script>
+</body>
+</html>
