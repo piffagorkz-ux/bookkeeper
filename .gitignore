@@ -3,3 +3,4 @@ work/
 node_modules/
 .wrangler/
 .env
+outputs/config.js
