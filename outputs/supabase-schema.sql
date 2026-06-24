@@ -1,5 +1,6 @@
 create table if not exists public.clients (
   id text primary key,
+  user_id uuid default auth.uid(),
   date date,
   name text not null,
   bin_iin text default '',
@@ -34,6 +35,7 @@ create table if not exists public.clients (
 );
 
 alter table public.clients add column if not exists date date;
+alter table public.clients add column if not exists user_id uuid default auth.uid();
 alter table public.clients add column if not exists bin_iin text default '';
 alter table public.clients add column if not exists registration_date date;
 alter table public.clients add column if not exists director_name text default '';
@@ -62,6 +64,7 @@ alter table public.clients add column if not exists payment_terms text default '
 
 create table if not exists public.firms (
   id text primary key,
+  user_id uuid default auth.uid(),
   client_id text not null references public.clients(id) on delete cascade,
   date date,
   name text not null,
@@ -100,6 +103,7 @@ create table if not exists public.firms (
 );
 
 alter table public.firms add column if not exists date date;
+alter table public.firms add column if not exists user_id uuid default auth.uid();
 alter table public.firms add column if not exists bin_iin text default '';
 alter table public.firms add column if not exists registration_date date;
 alter table public.firms add column if not exists director_name text default '';
@@ -131,6 +135,7 @@ alter table public.firms add column if not exists note text default '';
 
 create table if not exists public.tasks (
   id text primary key,
+  user_id uuid default auth.uid(),
   firm_id text not null references public.firms(id) on delete cascade,
   title text not null,
   due date,
@@ -138,8 +143,11 @@ create table if not exists public.tasks (
   created_at timestamptz not null default now()
 );
 
+alter table public.tasks add column if not exists user_id uuid default auth.uid();
+
 create table if not exists public.docs (
   id text primary key,
+  user_id uuid default auth.uid(),
   firm_id text not null references public.firms(id) on delete cascade,
   title text not null,
   period text default '',
@@ -147,16 +155,22 @@ create table if not exists public.docs (
   created_at timestamptz not null default now()
 );
 
+alter table public.docs add column if not exists user_id uuid default auth.uid();
+
 alter table public.clients enable row level security;
 alter table public.firms enable row level security;
 alter table public.tasks enable row level security;
 alter table public.docs enable row level security;
 
 grant usage on schema public to anon, authenticated;
-grant select, insert, update, delete on public.clients to anon, authenticated;
-grant select, insert, update, delete on public.firms to anon, authenticated;
-grant select, insert, update, delete on public.tasks to anon, authenticated;
-grant select, insert, update, delete on public.docs to anon, authenticated;
+revoke all on public.clients from anon;
+revoke all on public.firms from anon;
+revoke all on public.tasks from anon;
+revoke all on public.docs from anon;
+grant select, insert, update, delete on public.clients to authenticated;
+grant select, insert, update, delete on public.firms to authenticated;
+grant select, insert, update, delete on public.tasks to authenticated;
+grant select, insert, update, delete on public.docs to authenticated;
 
 drop policy if exists "buhpult_clients_read" on public.clients;
 drop policy if exists "buhpult_clients_insert" on public.clients;
@@ -178,26 +192,30 @@ drop policy if exists "buhpult_docs_insert" on public.docs;
 drop policy if exists "buhpult_docs_update" on public.docs;
 drop policy if exists "buhpult_docs_delete" on public.docs;
 
-create policy "buhpult_clients_read" on public.clients for select to anon, authenticated using (true);
-create policy "buhpult_clients_insert" on public.clients for insert to anon, authenticated with check (true);
-create policy "buhpult_clients_update" on public.clients for update to anon, authenticated using (true) with check (true);
-create policy "buhpult_clients_delete" on public.clients for delete to anon, authenticated using (true);
+create policy "buhpult_clients_read" on public.clients for select to authenticated using (user_id = auth.uid());
+create policy "buhpult_clients_insert" on public.clients for insert to authenticated with check (user_id = auth.uid());
+create policy "buhpult_clients_update" on public.clients for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "buhpult_clients_delete" on public.clients for delete to authenticated using (user_id = auth.uid());
 
-create policy "buhpult_firms_read" on public.firms for select to anon, authenticated using (true);
-create policy "buhpult_firms_insert" on public.firms for insert to anon, authenticated with check (true);
-create policy "buhpult_firms_update" on public.firms for update to anon, authenticated using (true) with check (true);
-create policy "buhpult_firms_delete" on public.firms for delete to anon, authenticated using (true);
+create policy "buhpult_firms_read" on public.firms for select to authenticated using (user_id = auth.uid());
+create policy "buhpult_firms_insert" on public.firms for insert to authenticated with check (user_id = auth.uid());
+create policy "buhpult_firms_update" on public.firms for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "buhpult_firms_delete" on public.firms for delete to authenticated using (user_id = auth.uid());
 
-create policy "buhpult_tasks_read" on public.tasks for select to anon, authenticated using (true);
-create policy "buhpult_tasks_insert" on public.tasks for insert to anon, authenticated with check (true);
-create policy "buhpult_tasks_update" on public.tasks for update to anon, authenticated using (true) with check (true);
-create policy "buhpult_tasks_delete" on public.tasks for delete to anon, authenticated using (true);
+create policy "buhpult_tasks_read" on public.tasks for select to authenticated using (user_id = auth.uid());
+create policy "buhpult_tasks_insert" on public.tasks for insert to authenticated with check (user_id = auth.uid());
+create policy "buhpult_tasks_update" on public.tasks for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "buhpult_tasks_delete" on public.tasks for delete to authenticated using (user_id = auth.uid());
 
-create policy "buhpult_docs_read" on public.docs for select to anon, authenticated using (true);
-create policy "buhpult_docs_insert" on public.docs for insert to anon, authenticated with check (true);
-create policy "buhpult_docs_update" on public.docs for update to anon, authenticated using (true) with check (true);
-create policy "buhpult_docs_delete" on public.docs for delete to anon, authenticated using (true);
+create policy "buhpult_docs_read" on public.docs for select to authenticated using (user_id = auth.uid());
+create policy "buhpult_docs_insert" on public.docs for insert to authenticated with check (user_id = auth.uid());
+create policy "buhpult_docs_update" on public.docs for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "buhpult_docs_delete" on public.docs for delete to authenticated using (user_id = auth.uid());
 
 create index if not exists firms_client_id_idx on public.firms(client_id);
 create index if not exists tasks_firm_id_idx on public.tasks(firm_id);
 create index if not exists docs_firm_id_idx on public.docs(firm_id);
+create index if not exists clients_user_id_idx on public.clients(user_id);
+create index if not exists firms_user_id_idx on public.firms(user_id);
+create index if not exists tasks_user_id_idx on public.tasks(user_id);
+create index if not exists docs_user_id_idx on public.docs(user_id);

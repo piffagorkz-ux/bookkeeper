@@ -43,6 +43,41 @@
     button, input, select, textarea { font: inherit; }
     button { -webkit-tap-highlight-color: transparent; }
 
+    .auth-screen {
+      width: min(100vw, 430px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 24px 18px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .auth-screen.active {
+      display: flex;
+    }
+
+    .auth-card {
+      width: 100%;
+      border-radius: 32px;
+      padding: 22px;
+      background: var(--phone);
+      box-shadow: var(--shadow);
+    }
+
+    .auth-card h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1;
+    }
+
+    .auth-card p {
+      margin: 10px 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
     .phone {
       width: min(100vw, 430px);
       min-height: 100vh;
@@ -722,7 +757,28 @@
   <script src="./config.js"></script>
 </head>
 <body>
-  <div class="phone">
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <h1>БухПульт</h1>
+      <p id="authText">Войдите, чтобы видеть только своих клиентов, фирмы и дела.</p>
+      <form id="authForm">
+        <div class="field">
+          <label for="authEmail">Email</label>
+          <input id="authEmail" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="authPassword">Пароль</label>
+          <input id="authPassword" name="password" type="password" autocomplete="current-password" required minlength="6">
+        </div>
+        <div class="toolbar">
+          <button class="tool primary" type="submit" id="authSubmit">Войти</button>
+          <button class="tool" type="button" id="authModeBtn">Создать аккаунт</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <div class="phone" id="appShell">
     <header class="topbar">
       <div class="statusline">
         <button class="icon-btn" title="Экспорт" type="button" id="exportBtn">⇩</button>
@@ -730,7 +786,7 @@
           <span id="todayLabel">Сегодня</span>
           <strong>БухПульт</strong>
         </div>
-        <button class="icon-btn" title="Очистить базу" type="button" id="clearBtn">⋮</button>
+        <button class="icon-btn" title="Выйти" type="button" id="logoutBtn">⎋</button>
         <button class="icon-btn accent" title="Быстро добавить" type="button" id="quickAddBtn">+</button>
       </div>
       <label class="search" for="searchInput">
@@ -847,8 +903,11 @@
     const config = window.BUHPULT_CONFIG || {};
     const supabaseUrl = (config.supabaseUrl || '').replace(/\/$/, '');
     const supabaseAnonKey = config.supabaseAnonKey || '';
+    const AUTH_STORAGE_KEY = 'buhpult.auth.v1';
     let db = emptyDb();
     let isConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+    let session = loadSession();
+    let authMode = 'login';
     let activeTab = 'dashboard';
     let taskFilter = 'open';
     let firmFilter = 'all';
@@ -859,6 +918,8 @@
     const detailSheet = document.getElementById('detailSheet');
     const formSheet = document.getElementById('formSheet');
     const toast = document.getElementById('toast');
+    const authScreen = document.getElementById('authScreen');
+    const appShell = document.getElementById('appShell');
 
     const regimes = ['УСН доходы', 'УСН доходы-расходы', 'ОСНО', 'ПСН', 'ЕСХН', 'Самозанятый'];
     const firmStatuses = [
@@ -934,6 +995,69 @@
       return type === 'client' ? 'clients' : type === 'firm' ? 'firms' : type === 'task' ? 'tasks' : 'docs';
     }
 
+    function loadSession() {
+      try {
+        const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function saveSession(nextSession) {
+      session = nextSession;
+      if (nextSession) {
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
+      } else {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
+      updateAuthVisibility();
+    }
+
+    function updateAuthVisibility() {
+      const signedIn = Boolean(session?.access_token);
+      authScreen.classList.toggle('active', !signedIn);
+      appShell.style.display = signedIn ? '' : 'none';
+    }
+
+    async function authRequest(path, body) {
+      if (!isConfigured) throw new Error('Supabase не настроен');
+      const response = await fetch(`${supabaseUrl}/auth/v1/${path}`, {
+        method: 'POST',
+        headers: {
+          apikey: supabaseAnonKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.msg || data.message || 'Ошибка авторизации');
+      return data;
+    }
+
+    async function handleAuth(event) {
+      event.preventDefault();
+      try {
+        const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+        const result = authMode === 'login'
+          ? await authRequest('token?grant_type=password', data)
+          : await authRequest('signup', data);
+        const nextSession = result.session || result;
+
+        if (!nextSession?.access_token) {
+          showToast('Проверьте email и подтвердите регистрацию');
+          return;
+        }
+
+        saveSession(nextSession);
+        await loadDb();
+        render();
+        showToast(authMode === 'login' ? 'Вход выполнен' : 'Аккаунт создан');
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+
     function toApi(type, item) {
       if (type === 'firm') return { ...item, client_id: item.clientId, clientId: undefined };
       if (type === 'task' || type === 'doc') return { ...item, firm_id: item.firmId, firmId: undefined };
@@ -948,11 +1072,12 @@
 
     async function api(table, options = {}) {
       if (!isConfigured) throw new Error('Supabase не настроен');
+      if (!session?.access_token) throw new Error('Нужно войти');
       const response = await fetch(`${supabaseUrl}/rest/v1/${table}${options.query || ''}`, {
         method: options.method || 'GET',
         headers: {
           apikey: supabaseAnonKey,
-          Authorization: `Bearer ${supabaseAnonKey}`,
+          Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
           Prefer: 'return=representation',
           ...(options.headers || {})
@@ -969,6 +1094,10 @@
 
     async function loadDb() {
       if (!isConfigured) {
+        db = emptyDb();
+        return;
+      }
+      if (!session?.access_token) {
         db = emptyDb();
         return;
       }
@@ -1646,26 +1775,23 @@
     });
 
     document.getElementById('entryForm').addEventListener('submit', saveForm);
+    document.getElementById('authForm').addEventListener('submit', handleAuth);
+    document.getElementById('authModeBtn').addEventListener('click', () => {
+      authMode = authMode === 'login' ? 'signup' : 'login';
+      document.getElementById('authSubmit').textContent = authMode === 'login' ? 'Войти' : 'Создать';
+      document.getElementById('authModeBtn').textContent = authMode === 'login' ? 'Создать аккаунт' : 'У меня есть аккаунт';
+      document.getElementById('authText').textContent = authMode === 'login'
+        ? 'Войдите, чтобы видеть только своих клиентов, фирмы и дела.'
+        : 'Создайте аккаунт. Пароль должен быть не короче 6 символов.';
+    });
     document.getElementById('quickAddBtn').addEventListener('click', () => openForm(db.clients.length ? 'firm' : 'client'));
     document.getElementById('exportBtn').addEventListener('click', exportData);
-    document.getElementById('clearBtn').addEventListener('click', () => {
-      if (!db.clients.length && !db.firms.length && !db.tasks.length && !db.docs.length) {
-        showToast('База уже пустая');
-        return;
-      }
-      if (confirm('Очистить все данные приложения?')) {
-        Promise.all([
-          ...db.tasks.map(item => removeItem('task', item.id)),
-          ...db.docs.map(item => removeItem('doc', item.id)),
-          ...db.firms.map(item => removeItem('firm', item.id)),
-          ...db.clients.map(item => removeItem('client', item.id))
-        ]).then(() => {
-          db = emptyDb();
-          closeSheets();
-          render();
-          showToast('База очищена');
-        }).catch(error => showToast(error.message));
-      }
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      saveSession(null);
+      db = emptyDb();
+      closeSheets();
+      render();
+      showToast('Вы вышли');
     });
     document.getElementById('searchInput').addEventListener('input', event => {
       searchQuery = event.target.value.trim().toLowerCase();
@@ -1681,13 +1807,19 @@
       month: 'long'
     });
 
-    loadDb()
-      .then(render)
-      .catch(error => {
-        db = emptyDb();
-        render();
-        showToast(error.message);
-      });
+    updateAuthVisibility();
+    if (session?.access_token) {
+      loadDb()
+        .then(render)
+        .catch(error => {
+          saveSession(null);
+          db = emptyDb();
+          render();
+          showToast(error.message);
+        });
+    } else {
+      render();
+    }
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
