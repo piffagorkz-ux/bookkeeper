@@ -17,6 +17,11 @@ export default {
       );
     }
 
+    if (url.pathname === "/") {
+      url.pathname = "/accountant-mobile.html";
+      return env.ASSETS.fetch(new Request(url, request));
+    }
+
     return env.ASSETS.fetch(request);
   }
 };
