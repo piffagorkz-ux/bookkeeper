@@ -1,12 +1,14 @@
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const fallbackSupabaseUrl = "https://gycdsbsceosfewjonluf.supabase.co";
+    const fallbackSupabaseAnonKey = "sb_publishable_yBlfdP0V-beHLtydbodiOA_t4ywrLWu";
 
     if (url.pathname === "/config.js") {
       return new Response(
         `window.BUHPULT_CONFIG = ${JSON.stringify({
-          supabaseUrl: env.SUPABASE_URL || "",
-          supabaseAnonKey: env.SUPABASE_ANON_KEY || ""
+          supabaseUrl: env.SUPABASE_URL || fallbackSupabaseUrl,
+          supabaseAnonKey: env.SUPABASE_ANON_KEY || fallbackSupabaseAnonKey
         })};`,
         {
           headers: {
