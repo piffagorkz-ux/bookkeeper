@@ -529,6 +529,13 @@
       padding: 0 18px 22px;
     }
 
+    .form-section {
+      margin: 18px 4px 10px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 950;
+    }
+
     .field {
       margin-bottom: 13px;
     }
@@ -866,6 +873,63 @@
       ['missing', 'Не хватает'],
       ['archived', 'Архив']
     ];
+    const clientFieldGroups = [
+      {
+        title: 'Основное',
+        fields: [
+          ['date', 'Дата', 'date'],
+          ['name', 'Наименование клиента (ФИО / юридическое лицо)', 'text', true],
+          ['bin_iin', 'БИН / ИИН'],
+          ['registration_date', 'Дата регистрации', 'date'],
+          ['director_name', 'ФИО руководителя'],
+          ['phone', 'Телефон(ы)'],
+          ['email', 'E-mail']
+        ]
+      },
+      {
+        title: 'Адреса и деятельность',
+        fields: [
+          ['legal_address', 'Юридический адрес'],
+          ['actual_address', 'Фактический адрес'],
+          ['activity_sphere', 'Сфера деятельности'],
+          ['oked', 'ОКЭД'],
+          ['taxpayer_type', 'Тип налогоплательщика (ОУР/Упрощенка и т.д.)'],
+          ['vat_info', 'НДС (дата номер)']
+        ]
+      },
+      {
+        title: 'Банк',
+        fields: [
+          ['bank_name', 'Банковские реквизиты (Название банка)'],
+          ['bik', 'БИК'],
+          ['account_number', 'Расчетный счет'],
+          ['bank_contact', 'Контактное лицо банка']
+        ]
+      },
+      {
+        title: 'Доступы и отметки',
+        fields: [
+          ['license_info', 'Лицензия (да/нет) номер дата'],
+          ['import_export', 'Импорт/экспорт'],
+          ['passwords', 'Пароли', 'textarea'],
+          ['ecp', 'ЭЦП'],
+          ['is_esf', 'ИС ЭСФ'],
+          ['enbek', 'ЕНБЕК'],
+          ['bank_access', 'БАНК'],
+          ['cloud_1c', '1C облако']
+        ]
+      },
+      {
+        title: 'Отчетность и договор',
+        fields: [
+          ['tax_reporting', 'Налоговая отчетность', 'textarea'],
+          ['statistics', 'Статистика', 'textarea'],
+          ['contract_info', 'Договор № и дата (оплата)'],
+          ['payment_terms', 'Условия оплаты', 'textarea'],
+          ['note', 'Дополнительная информация', 'textarea']
+        ]
+      }
+    ];
 
     function tableFor(type) {
       return type === 'client' ? 'clients' : type === 'firm' ? 'firms' : type === 'task' ? 'tasks' : 'docs';
@@ -998,6 +1062,31 @@
       return db.firms.filter(firm => firm.clientId === clientId).length;
     }
 
+    function clientSearchText(client) {
+      return clientFieldGroups
+        .flatMap(group => group.fields)
+        .map(([name]) => client[name] || '')
+        .join(' ');
+    }
+
+    function clientFormHtml(existing = {}) {
+      return clientFieldGroups.map(group => `
+        <div class="form-section">${escapeHtml(group.title)}</div>
+        ${group.fields.map(([name, label, type = 'text', required = false]) =>
+          type === 'textarea'
+            ? textarea(name, label, existing?.[name] || '')
+            : field(name, label, existing?.[name] || '', required, type)
+        ).join('')}
+      `).join('') + submitButtons(existing?.id);
+    }
+
+    function clientDetailsHtml(client) {
+      return clientFieldGroups.map(group => `
+        ${kv(group.title, '')}
+        ${group.fields.map(([name, label]) => kv(label, client[name] || 'не указано')).join('')}
+      `).join('') + kv('Фирмы', relatedFirmCount(client.id));
+    }
+
     function queryMatches(text) {
       return !searchQuery || String(text).toLowerCase().includes(searchQuery);
     }
@@ -1119,13 +1208,13 @@
       }
 
       const clients = db.clients
-        .filter(client => queryMatches(`${client.name} ${client.phone} ${client.email} ${client.note}`))
+        .filter(client => queryMatches(clientSearchText(client)))
         .map(client => row({
           id: client.id,
           type: 'client',
           icon: initial(client.name),
           title: client.name,
-          sub: client.phone || client.email || 'клиент без контактов',
+          sub: client.bin_iin || client.phone || client.email || 'клиент без контактов',
           meta: 'клиент',
           badge: { kind: 'gray', text: `${relatedFirmCount(client.id)} фирм` }
         }));
@@ -1170,7 +1259,7 @@
         type: 'client',
         icon: initial(client.name),
         title: client.name,
-        sub: client.phone || client.email || 'контакты не указаны',
+        sub: client.bin_iin || client.phone || client.email || client.director_name || 'данные не указаны',
         meta: `${relatedFirmCount(client.id)} фирм`,
         badge: { kind: 'gray', text: 'клиент' }
       });
@@ -1188,7 +1277,7 @@
     }
 
     function renderClients() {
-      const clients = db.clients.filter(client => queryMatches(`${client.name} ${client.phone} ${client.email}`));
+      const clients = db.clients.filter(client => queryMatches(clientSearchText(client)));
       document.getElementById('clientList').innerHTML = clients.length
         ? clients.map(clientRow).join('')
         : emptyState('Клиентов пока нет', 'Начните с клиента: имя, телефон и почта. Потом привяжите к нему одну или несколько фирм.', 'addClient', 'Добавить клиента');
@@ -1254,13 +1343,7 @@
       form.dataset.id = existing?.id || '';
 
       if (type === 'client') {
-        form.innerHTML = `
-          ${field('name', 'Имя клиента', existing?.name || '', true)}
-          ${field('phone', 'Телефон', existing?.phone || '')}
-          ${field('email', 'Email', existing?.email || '')}
-          ${textarea('note', 'Заметка', existing?.note || '')}
-          ${submitButtons(existing)}
-        `;
+        form.innerHTML = clientFormHtml(existing);
       }
 
       if (type === 'firm') {
@@ -1363,13 +1446,7 @@
 
     function detailHtml(type, item) {
       if (type === 'client') {
-        return `
-          ${kv('Имя', item.name)}
-          ${kv('Телефон', item.phone || 'не указан')}
-          ${kv('Email', item.email || 'не указан')}
-          ${kv('Фирмы', relatedFirmCount(item.id))}
-          ${kv('Заметка', item.note || 'нет')}
-        `;
+        return clientDetailsHtml(item);
       }
       if (type === 'firm') {
         return `
