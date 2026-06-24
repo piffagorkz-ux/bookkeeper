@@ -1,4 +1,4 @@
-const CACHE_NAME = "buhpult-pwa-v2";
+const CACHE_NAME = "buhpult-pwa-v3";
 const APP_SHELL = [
   "/",
   "/accountant-mobile.html",

@@ -873,12 +873,11 @@
       ['missing', 'Не хватает'],
       ['archived', 'Архив']
     ];
-    const clientFieldGroups = [
+    const firmProfileGroups = [
       {
         title: 'Основное',
         fields: [
           ['date', 'Дата', 'date'],
-          ['name', 'Наименование клиента (ФИО / юридическое лицо)', 'text', true],
           ['bin_iin', 'БИН / ИИН'],
           ['registration_date', 'Дата регистрации', 'date'],
           ['director_name', 'ФИО руководителя'],
@@ -1063,28 +1062,62 @@
     }
 
     function clientSearchText(client) {
-      return clientFieldGroups
-        .flatMap(group => group.fields)
-        .map(([name]) => client[name] || '')
-        .join(' ');
+      return `${client.name || ''} ${client.phone || ''} ${client.email || ''} ${client.note || ''}`;
+    }
+
+    function firmSearchText(firm) {
+      return [
+        firm.name,
+        firm.inn,
+        firm.regime,
+        clientName(firm.clientId),
+        ...firmProfileGroups.flatMap(group => group.fields).map(([name]) => firm[name] || '')
+      ].join(' ');
     }
 
     function clientFormHtml(existing = {}) {
-      return clientFieldGroups.map(group => `
+      return `
+        ${field('name', 'Имя клиента / контактное лицо', existing?.name || '', true)}
+        ${field('phone', 'Телефон', existing?.phone || '')}
+        ${field('email', 'Email', existing?.email || '')}
+        ${textarea('note', 'Заметка', existing?.note || '')}
+        ${submitButtons(existing?.id)}
+      `;
+    }
+
+    function firmProfileFormHtml(existing = {}) {
+      return firmProfileGroups.map(group => `
         <div class="form-section">${escapeHtml(group.title)}</div>
         ${group.fields.map(([name, label, type = 'text', required = false]) =>
           type === 'textarea'
             ? textarea(name, label, existing?.[name] || '')
             : field(name, label, existing?.[name] || '', required, type)
         ).join('')}
-      `).join('') + submitButtons(existing?.id);
+      `).join('');
     }
 
     function clientDetailsHtml(client) {
-      return clientFieldGroups.map(group => `
-        ${kv(group.title, '')}
-        ${group.fields.map(([name, label]) => kv(label, client[name] || 'не указано')).join('')}
-      `).join('') + kv('Фирмы', relatedFirmCount(client.id));
+      return `
+        ${kv('Имя клиента / контактное лицо', client.name)}
+        ${kv('Телефон', client.phone || 'не указан')}
+        ${kv('Email', client.email || 'не указан')}
+        ${kv('Фирмы', relatedFirmCount(client.id))}
+        ${kv('Заметка', client.note || 'нет')}
+      `;
+    }
+
+    function firmDetailsHtml(firm) {
+      return `
+        ${kv('Клиент', clientName(firm.clientId))}
+        ${kv('Название фирмы', firm.name)}
+        ${kv('ИНН', firm.inn || 'не указан')}
+        ${kv('Режим', firm.regime)}
+        ${kv('Статус', labelFrom(firmStatuses, firm.status))}
+        ${firmProfileGroups.map(group => `
+          ${kv(group.title, '')}
+          ${group.fields.map(([name, label]) => kv(label, firm[name] || 'не указано')).join('')}
+        `).join('')}
+      `;
     }
 
     function queryMatches(text) {
@@ -1185,7 +1218,7 @@
         : emptyState('Нет задач', 'Добавьте первую задачу или срок отчетности, чтобы видеть их на главном экране.', 'addTask', 'Добавить задачу');
 
       const lastFirms = db.firms
-        .filter(firm => queryMatches(`${firm.name} ${firm.inn} ${firm.regime} ${clientName(firm.clientId)}`))
+        .filter(firm => queryMatches(firmSearchText(firm)))
         .slice(-4)
         .reverse();
       document.getElementById('firmListShort').innerHTML = lastFirms.length
@@ -1220,7 +1253,7 @@
         }));
 
       const firms = db.firms
-        .filter(firm => queryMatches(`${firm.name} ${firm.inn} ${firm.regime} ${clientName(firm.clientId)} ${labelFrom(firmStatuses, firm.status)}`))
+        .filter(firm => queryMatches(`${firmSearchText(firm)} ${labelFrom(firmStatuses, firm.status)}`))
         .map(firm => firmRow(firm));
 
       const tasks = db.tasks
@@ -1271,7 +1304,7 @@
         type: 'firm',
         icon: initial(firm.name),
         title: firm.name,
-        sub: `${firm.inn || 'ИНН не указан'} · ${labelFrom(regimes.map(x => [x, x]), firm.regime)} · ${clientName(firm.clientId)}`,
+        sub: `${firm.bin_iin || firm.inn || 'БИН/ИИН не указан'} · ${labelFrom(regimes.map(x => [x, x]), firm.regime)} · ${clientName(firm.clientId)}`,
         badge: { kind: firm.status, text: labelFrom(firmStatuses, firm.status) }
       });
     }
@@ -1286,7 +1319,7 @@
     function renderFirms() {
       const firms = db.firms
         .filter(firm => firmFilter === 'all' || firm.status === 'risk' || firm.status === 'wait')
-        .filter(firm => queryMatches(`${firm.name} ${firm.inn} ${firm.regime} ${clientName(firm.clientId)}`));
+        .filter(firm => queryMatches(firmSearchText(firm)));
       document.getElementById('firmList').innerHTML = firms.length
         ? firms.map(firmRow).join('')
         : emptyState('Фирм пока нет', 'Добавьте организацию, ИНН, режим налогообложения и клиента-владельца.', 'addFirm', 'Добавить фирму');
@@ -1356,6 +1389,7 @@
             ${select('clientId', 'Клиент', clientOptions(existing?.clientId), true)}
             ${select('regime', 'Режим', options(regimes.map(item => [item, item]), existing?.regime || regimes[0]), true)}
             ${select('status', 'Статус', options(firmStatuses, existing?.status || 'ok'), true)}
+            ${firmProfileFormHtml(existing)}
             ${submitButtons(existing)}
           `;
         }
@@ -1449,13 +1483,7 @@
         return clientDetailsHtml(item);
       }
       if (type === 'firm') {
-        return `
-          ${kv('Название', item.name)}
-          ${kv('ИНН', item.inn || 'не указан')}
-          ${kv('Клиент', clientName(item.clientId))}
-          ${kv('Режим', item.regime)}
-          ${kv('Статус', labelFrom(firmStatuses, item.status))}
-        `;
+        return firmDetailsHtml(item);
       }
       if (type === 'task') {
         return `
@@ -1492,6 +1520,9 @@
         if (!type) return;
         const collection = type === 'client' ? 'clients' : type === 'firm' ? 'firms' : type === 'task' ? 'tasks' : 'docs';
         const payload = { id: existingId || id(), ...data };
+        ['date', 'registration_date', 'due'].forEach(name => {
+          if (payload[name] === '') payload[name] = null;
+        });
         if (type === 'task') payload.status = payload.status || 'open';
         if (type === 'firm') payload.status = payload.status || 'ok';
         if (type === 'doc') payload.status = payload.status || 'new';

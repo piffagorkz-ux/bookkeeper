@@ -63,12 +63,71 @@ alter table public.clients add column if not exists payment_terms text default '
 create table if not exists public.firms (
   id text primary key,
   client_id text not null references public.clients(id) on delete cascade,
+  date date,
   name text not null,
   inn text default '',
+  bin_iin text default '',
+  registration_date date,
+  director_name text default '',
+  legal_address text default '',
+  actual_address text default '',
   regime text not null default 'УСН доходы',
   status text not null default 'ok',
+  phone text default '',
+  email text default '',
+  activity_sphere text default '',
+  oked text default '',
+  taxpayer_type text default '',
+  vat_info text default '',
+  bank_name text default '',
+  bik text default '',
+  account_number text default '',
+  bank_contact text default '',
+  license_info text default '',
+  import_export text default '',
+  passwords text default '',
+  ecp text default '',
+  is_esf text default '',
+  enbek text default '',
+  bank_access text default '',
+  cloud_1c text default '',
+  tax_reporting text default '',
+  statistics text default '',
+  contract_info text default '',
+  payment_terms text default '',
+  note text default '',
   created_at timestamptz not null default now()
 );
+
+alter table public.firms add column if not exists date date;
+alter table public.firms add column if not exists bin_iin text default '';
+alter table public.firms add column if not exists registration_date date;
+alter table public.firms add column if not exists director_name text default '';
+alter table public.firms add column if not exists legal_address text default '';
+alter table public.firms add column if not exists actual_address text default '';
+alter table public.firms add column if not exists phone text default '';
+alter table public.firms add column if not exists email text default '';
+alter table public.firms add column if not exists activity_sphere text default '';
+alter table public.firms add column if not exists oked text default '';
+alter table public.firms add column if not exists taxpayer_type text default '';
+alter table public.firms add column if not exists vat_info text default '';
+alter table public.firms add column if not exists bank_name text default '';
+alter table public.firms add column if not exists bik text default '';
+alter table public.firms add column if not exists account_number text default '';
+alter table public.firms add column if not exists bank_contact text default '';
+alter table public.firms add column if not exists license_info text default '';
+alter table public.firms add column if not exists import_export text default '';
+alter table public.firms add column if not exists passwords text default '';
+alter table public.firms add column if not exists ecp text default '';
+alter table public.firms add column if not exists is_esf text default '';
+alter table public.firms add column if not exists enbek text default '';
+alter table public.firms add column if not exists bank_access text default '';
+alter table public.firms add column if not exists cloud_1c text default '';
+alter table public.firms add column if not exists tax_reporting text default '';
+alter table public.firms add column if not exists statistics text default '';
+alter table public.firms add column if not exists contract_info text default '';
+alter table public.firms add column if not exists payment_terms text default '';
+alter table public.firms add column if not exists note text default '';
 
 create table if not exists public.tasks (
   id text primary key,
