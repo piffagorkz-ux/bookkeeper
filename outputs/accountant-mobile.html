@@ -1103,6 +1103,20 @@
       return data;
     }
 
+    async function refreshSession() {
+      if (!session?.refresh_token) return false;
+      try {
+        const nextSession = await authRequest('token?grant_type=refresh_token', {
+          refresh_token: session.refresh_token
+        });
+        if (!nextSession?.access_token) return false;
+        saveSession(nextSession);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
     async function handleAuth(event) {
       event.preventDefault();
       try {
@@ -1141,7 +1155,7 @@
     async function api(table, options = {}) {
       if (!isConfigured) throw new Error('Supabase не настроен');
       if (!session?.access_token) throw new Error('Нужно войти');
-      const response = await fetch(`${supabaseUrl}/rest/v1/${table}${options.query || ''}`, {
+      let response = await fetch(`${supabaseUrl}/rest/v1/${table}${options.query || ''}`, {
         method: options.method || 'GET',
         headers: {
           apikey: supabaseAnonKey,
@@ -1152,6 +1166,19 @@
         },
         body: options.body ? JSON.stringify(options.body) : undefined
       });
+      if (response.status === 401 && await refreshSession()) {
+        response = await fetch(`${supabaseUrl}/rest/v1/${table}${options.query || ''}`, {
+          method: options.method || 'GET',
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=representation',
+            ...(options.headers || {})
+          },
+          body: options.body ? JSON.stringify(options.body) : undefined
+        });
+      }
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || `Ошибка Supabase: ${response.status}`);
@@ -1884,19 +1911,30 @@
       month: 'long'
     });
 
-    updateAuthVisibility();
-    if (session?.access_token) {
-      loadDb()
-        .then(render)
-        .catch(error => {
-          saveSession(null);
-          db = emptyDb();
-          render();
-          showToast(error.message);
-        });
-    } else {
+    async function boot() {
+      updateAuthVisibility();
+      if (!session?.access_token && session?.refresh_token) {
+        await refreshSession();
+      }
+      updateAuthVisibility();
+      if (session?.access_token) {
+        try {
+          await loadDb();
+        } catch (error) {
+          const refreshed = await refreshSession();
+          if (refreshed) {
+            await loadDb();
+          } else {
+            saveSession(null);
+            db = emptyDb();
+            showToast(error.message);
+          }
+        }
+      }
       render();
     }
+
+    boot();
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
